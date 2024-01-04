@@ -1,7 +1,5 @@
 //index.js
 
-function helloNpm() {
-  return "hello NPM"
-}
+import { TicTacToe } from './src/games'
 
-module.exports = helloNpm
+module.exports = { TicTacToe }
