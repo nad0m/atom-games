@@ -2,4 +2,4 @@
 
 import { TicTacToe } from './src/games'
 
-module.exports = { TicTacToe }
+export { TicTacToe }
