@@ -1,12 +1,12 @@
 import { Game } from 'boardgame.io'
 import { INVALID_MOVE } from 'boardgame.io/core'
 
-export interface TicTacToeState {
+export type TicTacToeState = {
   cells: (string | null)[]
 }
 
 export const TicTacToe: Game<TicTacToeState> = {
-  name: 'TicTacToe',
+  name: 'Tic Tac Toe',
   setup: () => ({ cells: Array(9).fill(null) }),
   turn: {
     moveLimit: 1,

@@ -1,5 +1,6 @@
 //index.js
 
-import { TicTacToe } from './src/games'
+import { TicTacToe, TicTacToeState } from './src/games'
+import { TheMind, TheMindPlayer, TheMindState } from './src/games'
 
-export { TicTacToe }
+export { TicTacToe, TicTacToeState, TheMind, TheMindPlayer, TheMindState }
