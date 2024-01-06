@@ -13,12 +13,12 @@ export type TheMindState = {
 }
 
 export const TheMind: Game<TheMindState> = {
-  name: 'The Mind',
-  setup: ({ activePlayers, random }) => {
+  name: 'TheMind',
+  setup: ({ playOrder, random }) => {
     const players: { [key: string]: TheMindPlayer } = {}
-    Object.entries(activePlayers || {}).forEach(([playerId, name]) => {
+    playOrder.forEach(playerId => {
       players[playerId] = {
-        name,
+        name: null,
         hand: [],
       }
     })
@@ -32,20 +32,32 @@ export const TheMind: Game<TheMindState> = {
   },
   phases: {
     drawPhase: {
-      onBegin: (G, { activePlayers }) => {
-        Object.entries(activePlayers || {}).forEach(([playerId, name]) => {
+      onBegin: (G, { playOrder, events, playerID, ...rest }) => {
+        Object.entries(G.players).forEach(([playerId, name]) => {
           let numberOfCards = G.currentLevel
           while (numberOfCards > 0) {
             G.players[playerId].hand.push(G.deck.pop() as number)
             numberOfCards--
           }
         })
+        console.log({ G, playOrder, events, playerID, rest })
+        return G
       },
       onEnd: (G, ctx) => {},
-      endIf: (G, ctx) => {},
-      next: 'play',
+      endIf: (G, { playOrder, ...ctx }) => {
+        const players = Object.values(G.players)
+        console.log({ G, playOrder, players, ctx })
+
+        // end phase if every player has drawn their cards
+        return (
+          players.length === playOrder.length &&
+          players.every(({ hand }) => hand.length === G.currentLevel)
+        )
+      },
+      next: 'playPhase',
       start: true,
     },
+    playPhase: {},
   },
   turn: {
     minMoves: 1,
