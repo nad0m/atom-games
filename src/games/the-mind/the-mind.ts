@@ -1,4 +1,7 @@
 import { Ctx, Game, PhaseMap } from 'boardgame.io'
+import { ActivePlayers } from 'boardgame.io/core'
+
+export type GameStatus = 'pending' | 'win' | 'lose'
 
 export type TheMindPlayer = {
   name: string
@@ -8,37 +11,58 @@ export type TheMindPlayer = {
 
 export type TheMindState = {
   currentLevel: number
+  gameStatus: GameStatus
   deck: number[]
   discard: number[]
+  gameStartTimer: number
   players: { [key: string]: TheMindPlayer }
 }
 
 export type TheMindPhases = typeof phases
 
+const GAME_START_COUNTDOWN_SECONDS = 3
+
+const isInAscendingOrder = (arr: number[]) => {
+  if (arr.length <= 1) {
+    return true // An array with 0 or 1 element is always considered in order
+  }
+
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] < arr[i - 1]) {
+      return false
+    }
+  }
+  return true
+}
+
+const isTeamVictory = (G: TheMindState) => {
+  const noCardsLeft = Object.values(G.players).every(({ hand }) => hand.length === 0)
+  const validDiscardPile = isInAscendingOrder(G.discard)
+
+  return noCardsLeft && validDiscardPile
+}
+
 const phases: PhaseMap<TheMindState, Ctx> = {
   readyUpPhase: {
-    turn: {
-      onBegin: (G, ctx) => {
-        ctx.events.setActivePlayers(ctx.playOrder)
-      },
+    onBegin: (G, ctx) => {
+      G.gameStartTimer = GAME_START_COUNTDOWN_SECONDS
     },
     moves: {
       toggleReady: (G, ctx) => {
         G.players[ctx.playerID].isReady = !G.players[ctx.playerID].isReady
+
+        if (!G.players[ctx.playerID].isReady) {
+          G.gameStartTimer = GAME_START_COUNTDOWN_SECONDS
+        }
+      },
+      countDownToTransition: (G, ctx) => {
+        G.gameStartTimer -= 1
       },
     },
     endIf: (G, ctx) => {
-      return Object.values(G.players).every(({ isReady }) => isReady)
+      return G.gameStartTimer === 0
     },
     start: true,
-    next: 'toDrawPhaseTransition',
-  },
-  toDrawPhaseTransition: {
-    onBegin: (G, ctx) => {
-      setTimeout(function () {
-        ctx.events.endPhase()
-      }, 5000)
-    },
     next: 'drawPhase',
   },
   drawPhase: {
@@ -63,7 +87,46 @@ const phases: PhaseMap<TheMindState, Ctx> = {
     },
     next: 'playPhase',
   },
-  playPhase: {},
+  playPhase: {
+    moves: {
+      playCard: (G, ctx, cardValue: number) => {
+        const playerID = ctx.playerID
+
+        if (G.players[playerID].hand.includes(cardValue)) {
+          G.discard.push(cardValue)
+          G.players[playerID].hand = G.players[playerID].hand.filter(
+            removed => removed !== cardValue,
+          )
+        }
+      },
+    },
+    endIf: G => {
+      const win = isTeamVictory(G)
+      const lose = !isInAscendingOrder(G.discard)
+
+      if (win) {
+        G.gameStatus = 'win'
+      }
+
+      if (lose) {
+        G.gameStatus = 'lose'
+      }
+
+      return win || lose
+    },
+
+    next: G => {
+      if (G.gameStatus === 'win') {
+        return 'winPhase'
+      }
+
+      if (G.gameStatus === 'lose') {
+        return 'losePhase'
+      }
+    },
+  },
+  winPhase: {},
+  losePhase: {},
 }
 
 export const TheMind: Game<TheMindState> = {
@@ -80,8 +143,10 @@ export const TheMind: Game<TheMindState> = {
 
     return {
       currentLevel: 1,
+      gameStatus: 'pending',
       deck: random?.Shuffle(Array.from(Array(100).keys(), x => x + 1)) as number[],
       discard: [],
+      gameStartTimer: GAME_START_COUNTDOWN_SECONDS,
       players,
     }
   },
@@ -89,7 +154,6 @@ export const TheMind: Game<TheMindState> = {
   maxPlayers: 10,
   phases,
   turn: {
-    minMoves: 1,
-    maxMoves: 1,
+    activePlayers: ActivePlayers.ALL,
   },
 }
